@@ -1,114 +1,88 @@
-// db open
 ( (frm)=>{
-    console.log("ready...")
     let id="a1234";
-    let dbName="myDB";
+    let dbName = "myDB";
     let table = "exam";
-    let db;//database object
-    let req = indexedDB.open(dbName,1);
-    req.onsuccess = (event)=>{
+    let db; // database object
+
+    // database open
+    let req = indexedDB.open(dbName, 1);
+    req.onsuccess=(event)=>{
         db = event.target.result;
-        console.log("db open")
         load();
     }
-    req.onerror = (event)=>{
+    req.onerror=(event)=>{
         console.log("db open error!!!")
-        //indexedDB.deleteDatabase("myDB");
     }
+    // db의 구조가 변경되거나 버전이 바뀌었을 때 자동 호출
     req.onupgradeneeded=(event)=>{
         db = event.target.result;
         if( !db.objectStoreNames.contains(table)){
-            db.createObjectStore(table , {keyPath : "id"}); 
+            db.createObjectStore(table, {keyPath : "id"});
         }
     }
 
-    //window.onbeforeunload = store(document.frm)
 
-    // indexDB -> form, 각종 이벤트 처리
     function load(){
-        let choiceType = ['radio','checkbox','select']
+        let choiceType = ["radio", "checkbox", "select"];
+
+        // read data(transaction)
         let trans = db.transaction(table, "readonly");
-        let store = trans.objectStore(table);
-        let req = store.get(id);
-        let data={};
-        req.onsuccess=(event)=>{
+        let store = trans.objectStore(table); // 데이터 read
+        let req = store.get(id); // row
+        let data = {};
+
+        req.onsuccess= (event)=>{
             data = event.target.result;
-            console.table("load ", data)
             if(data){
-                data.data.forEach(d =>{
+                data.data.forEach(d=>{
                     if(choiceType.includes(d.tagType)){
                         let list = document.querySelectorAll(`[name="${d.tagName}"]`);
                         list.forEach(target=>{
-                            if(target.value == d.value) target.checked=true;
+                            if(target.value == d.value) target.checked = true;
                         })
                     }else{
                         let tag = document.querySelector(`[name="${d.tagName}"]`);
                         tag.value = d.value;
                     }
                 })
-            }else{
-                console.log("not found data.")
-                createData();
             }
         }
-        frm.addEventListener("input", update)
-        
-
-    }
-    function createData(){
-        let trans = db.transaction(table, "readwrite");
-        let store = trans.objectStore(table);
-        console.log('createData id ', id)
-        let data = {
-            'id' : id,
-            'data' :[]
-        }
-        let req = store.add(data);
-        req.onsuccess=()=>{
-            console.log("create new data.")
-        }
     }
 
-    function update(){
+    frm.addEventListener("input", store);
+    function store(){
         let formData = new FormData(frm);
-        let data = [];
-        let storeData = {};
-        for( let[key, value] of formData.entries()){
-            let tagType = frm.querySelector(`[name="${key}"]`).type;
+        let data=[];
+        for( let[tagName, value] of formData.entries()){
+            let tagType = frm.querySelector(`[name="${tagName}"]`).type;
             props = {
-                'tagName' : key,
+                'tagName' : tagName,
                 'tagType' : tagType,
                 'value'   : value
             }
-            data.push(props)
+            data.push(props);
         }
-        
+        console.log(data);
         let trans = db.transaction(table, "readwrite");
         let store = trans.objectStore(table);
-        storeData = {
-            'id' : id,
-           'data': data
+        let storeData = {
+            "id" : id,
+            "data" : data
         }
-        let req = store.put(storeData);
+        let req = store.put(storeData); 
         req.onsuccess=(event)=>{
-            console.table(storeData);
-
+            console.log("데이터가 저장되었습니다.");
         }
     }
 
-
     let btnDelete = document.querySelector("#btnDelete");
-    btnDelete.addEventListener("click", ()=>{
-        db.close();
+    btnDelete.addEventListener("click" , ()=>{
+        db.close(); // 연결정보를 모두 닫음.
         let req = indexedDB.deleteDatabase(dbName);
         req.onsuccess=()=>{
-            frm.removeEventListener("input", update);
-            console.log("database delete.")
-        }
-        req.onblocked=()=>{
-            console.log("db close()")
-            db.close();
+            console.log("데이터베이스가 삭제되었습니다.");
+            frm.reset();
         }
     })
-        
+
 })(document.frm)
